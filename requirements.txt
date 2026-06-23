@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+uvloop
+
+transformers
+sentencepiece
+
+redis
+pyyaml
+
+langid
+ctranslate2
+torch

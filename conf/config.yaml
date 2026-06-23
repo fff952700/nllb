@@ -1,0 +1,53 @@
+server:
+  host: 0.0.0.0
+  port: 8000
+
+auth:
+  enabled: false
+
+worker:
+  pool_size: 2 # 2个 Ingestion 线程就够了，Redis 读取不是瓶颈
+  batch_size: 64 # GPU 显存够大，可以给更多句子
+  batch_wait_ms: 50 # GPU 快，等待时间可以更短
+  max_retry: 3
+
+gpu:
+  max_tokens: 3072 # T4 sweet spot
+  min_batch: 32
+  max_batch: 48
+  stash_max_age_ms: 5000
+
+stream:
+  name: translate_stream
+  group: translate_grou
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  password: "123456"
+  max_connections: 50
+
+model:
+  name: facebook/nllb-200-distilled-600M
+  ct2_path: /data/nllb/models/nllb-600m-ct2
+  max_length: 128
+
+translate:
+  default_target_lang: eng_Latn
+
+cache:
+  expire: 86400
+
+hf:
+  token: "xxx"
+  cache_dir: /data/nllb/cache/huggingface
+
+runtime:
+  omp_threads: 2
+  mkl_threads: 2
+
+rate_limit:
+  enabled: false
+  limit: 20
+  window: 60
