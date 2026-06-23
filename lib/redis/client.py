@@ -1,13 +1,21 @@
 import redis
-from settings import *
+from conf.setting import RedisConfig
 
-pool = redis.ConnectionPool(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    db=REDIS_DB,
-    password=REDIS_PASSWORD or None,
-    decode_responses=True,
-    max_connections=REDIS_MAX_CONN
-)
 
-redis_client = redis.Redis(connection_pool=pool)
+class RedisClient:
+    """Redis 客户端封装，接受 RedisConfig，不依赖全局 settings"""
+
+    def __init__(self, cfg: RedisConfig):
+        pool = redis.ConnectionPool(
+            host=cfg.host,
+            port=cfg.port,
+            db=cfg.db,
+            password=cfg.password or None,
+            decode_responses=True,
+            max_connections=cfg.max_connections,
+        )
+        self._client = redis.Redis(connection_pool=pool)
+
+    def __getattr__(self, name: str):
+        """将所有方法调用代理给底层 redis.Redis 实例"""
+        return getattr(self._client, name)

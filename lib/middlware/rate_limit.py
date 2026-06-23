@@ -1,17 +1,23 @@
-from redis_client import redis_client
-from settings import RL_ENABLED, RL_LIMIT, RL_WINDOW
+from conf.setting import RateLimitConfig
+from lib.redis.client import RedisClient
 
 
-def rate_limit(api_key: str, route: str = "translate"):
+class RateLimiter:
+    """速率限制器，接受 RedisClient 和 RateLimitConfig，不依赖全局 settings"""
 
-    if not RL_ENABLED:
-        return True
+    def __init__(self, redis_client: RedisClient, cfg: RateLimitConfig):
+        self._redis = redis_client
+        self._cfg = cfg
 
-    key = f"rl:{api_key}:{route}"
+    def check(self, api_key: str, route: str = "translate") -> bool:
+        """返回 True 表示允许通过，False 表示已超出限额"""
+        if not self._cfg.enabled:
+            return True
 
-    count = redis_client.incr(key)
+        key = f"rl:{api_key}:{route}"
+        count = self._redis.incr(key)
 
-    if count == 1:
-        redis_client.expire(key, RL_WINDOW)
+        if count == 1:
+            self._redis.expire(key, self._cfg.window)
 
-    return count <= RL_LIMIT
+        return count <= self._cfg.limit

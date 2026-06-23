@@ -60,3 +60,42 @@ if __name__ == "__main__":
         log_config=LOG_CONFIG,
         access_log=True
     )
+
+
+# main.py
+from config.build import build_settings
+from worker.manager import WorkerManager
+from service.cpu_service import CPUService
+from service.gpu_service import GPUService
+from model.translator import Translator
+
+def create_app(config_path: str):
+
+    # 1. config
+    settings = build_settings(config_path)
+
+    # 2. model
+    translator = Translator()
+
+    # 3. service
+    cpu_service = CPUService(translator, settings.cpu)
+    gpu_service = GPUService(translator, settings.gpu)
+
+    # 4. worker manager
+    manager = WorkerManager()
+
+    manager.add_worker(cpu_service)
+    manager.add_worker(gpu_service)
+
+    manager.start_all()
+
+    return {
+        "settings": settings,
+        "cpu": cpu_service,
+        "gpu": gpu_service,
+        "workers": manager,
+    }
+
+
+if __name__ == "__main__":
+    app = create_app("conf/config.yaml")
