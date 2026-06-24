@@ -1,101 +1,54 @@
 import uvicorn
-from settings import HOST, PORT
+from fastapi import FastAPI
 
-LOG_FILE = "/data/nllb/logs/uvicorn.log"
+from conf.loader import load_config
+from libs.engine.core import Engine
+from libs.models.ct2 import CT2Model
+from workers.manager import WorkerManager
+from workers.impl_worker import TranslateWorker
+from libs.redis.client import RedisClient
+from routers.translate import router as translate_router
 
-LOG_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
 
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        },
-        "access": {
-            "format": "%(asctime)s [ACCESS] %(message)s"
-        }
-    },
+def main():
 
-    "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": LOG_FILE,
-            "formatter": "default"
-        },
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "default"
-        }
-    },
+    settings = load_config()
 
-    "loggers": {
-        "uvicorn": {
-            "handlers": ["file", "console"],
-            "level": "INFO",
-            "propagate": False
-        },
-        "uvicorn.error": {
-            "handlers": ["file", "console"],
-            "level": "INFO"
-        },
-        "uvicorn.access": {
-            "handlers": ["file", "console"],
-            "level": "INFO"
-        }
-    },
+    engine = Engine(settings)
 
-    "root": {
-        "handlers": ["file", "console"],
-        "level": "INFO"
-    }
-}
+    # Redis
+    redis = RedisClient(settings.redis)
+    engine.bind("redis", redis)
+    engine.init_stream()
 
-if __name__ == "__main__":
+    # Model
+    model = CT2Model(settings.model, settings.runtime)
+    engine.bind("model", model)
+
+    # Worker manager
+    manager = WorkerManager()
+    engine.bind("worker_manager", manager)
+
+    # Workers
+    for i in range(settings.worker.pool_size):
+        worker = TranslateWorker(engine, i)
+        manager.add(worker)
+
+    manager.start()
+
+    # 初始化 FastAPI App
+    app = FastAPI()
+    app.include_router(translate_router)
+    app.state.engine = engine
+
+    print("[system] started")
+
     uvicorn.run(
-        "app:app",
-        host=HOST,
-        port=PORT,
-        workers=1,
-        loop="uvloop",
-        log_config=LOG_CONFIG,
-        access_log=True
+        app,
+        host=settings.server.host,
+        port=settings.server.port
     )
 
 
-# main.py
-from config.build import build_settings
-from worker.manager import WorkerManager
-from service.cpu_service import CPUService
-from service.gpu_service import GPUService
-from model.translator import Translator
-
-def create_app(config_path: str):
-
-    # 1. config
-    settings = build_settings(config_path)
-
-    # 2. model
-    translator = Translator()
-
-    # 3. service
-    cpu_service = CPUService(translator, settings.cpu)
-    gpu_service = GPUService(translator, settings.gpu)
-
-    # 4. worker manager
-    manager = WorkerManager()
-
-    manager.add_worker(cpu_service)
-    manager.add_worker(gpu_service)
-
-    manager.start_all()
-
-    return {
-        "settings": settings,
-        "cpu": cpu_service,
-        "gpu": gpu_service,
-        "workers": manager,
-    }
-
-
 if __name__ == "__main__":
-    app = create_app("conf/config.yaml")
+    main()

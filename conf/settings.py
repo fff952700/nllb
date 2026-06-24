@@ -20,6 +20,7 @@ class RedisConfig:
 class StreamConfig:
     name: str
     group: str
+    consumer_prefix: str = "worker"
 
 
 @dataclass
@@ -53,20 +54,21 @@ class HFConfig:
 
 @dataclass
 class RuntimeConfig:
-    omp_threads: int
-    mkl_threads: int
+    device: str = "cpu"   # cpu / cuda
+    omp_threads: int = 1
+    mkl_threads: int = 1
 
 
 @dataclass
 class RateLimitConfig:
     enabled: bool
-    limit: int
-    window: int
+    limit: int = 1000
+    window: int = 60
 
 
 @dataclass
 class Settings:
-    mode: str               # "cpu" | "gpu"
+    mode: str
     server: ServerConfig
     redis: RedisConfig
     stream: StreamConfig

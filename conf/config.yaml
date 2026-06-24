@@ -1,27 +1,13 @@
-mode: cpu   # cpu | gpu
-
 server:
   host: 0.0.0.0
   port: 8000
 
-auth:
-  enabled: false
+mode: cpu
 
-worker:
-  pool_size: 2        # Worker 进程数
-  batch_size: 64      # 最大批处理大小
-  batch_wait_ms: 50   # 批等待时间（毫秒）
-  max_retry: 3
-
-gpu:
-  max_tokens: 3072
-  min_batch: 32
-  max_batch: 48
-  stash_max_age_ms: 5000
-
-stream:
-  name: translate_stream
-  group: translate_group
+runtime:
+  device: cpu
+  omp_threads: 2
+  mkl_threads: 2
 
 redis:
   host: 127.0.0.1
@@ -30,26 +16,38 @@ redis:
   password: "123456"
   max_connections: 50
 
+stream:
+  name: translate_stream
+  group: translate_group
+  consumer_prefix: worker
+
+worker:
+  pool_size: 2
+  batch_size: 64
+  batch_wait_ms: 50
+  max_retry: 3
+
 model:
   name: facebook/nllb-200-distilled-600M
   ct2_path: /data/nllb/models/nllb-600m-ct2
   max_length: 128
 
-translate:
-  default_target_lang: eng_Latn
+hf:
+  token: "xxx"
+  cache_dir: /data/nllb/cache
 
 cache:
   expire: 86400
 
-hf:
-  token: "xxx"
-  cache_dir: /data/nllb/cache/huggingface
-
-runtime:
-  omp_threads: 2
-  mkl_threads: 2
+auth:
+  enabled: false
 
 rate_limit:
   enabled: false
-  limit: 20
-  window: 60
+  limit: 1000
+
+gpu:
+  max_tokens: 3072
+  min_batch: 32
+  max_batch: 48
+  stash_max_age_ms: 5000
